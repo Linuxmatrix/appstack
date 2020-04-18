@@ -1,0 +1,29 @@
+#!groovy
+
+@Library("ngssf-base-build") _
+properties([gitLabConnection(base.gitlabConnectionName)])
+
+
+node("docker-agent") {
+    stage("checkout") {
+        checkoutClean()
+    }
+
+    gitlabCommitStatus {
+        stage("build") {
+            new_tag = getBuildTag(this)
+            currentBuild.displayName = new_tag
+            image = dockerBuild(this, "ngssf-sw-label-content", new_tag, dockerFile: "Dockerfile")
+        }
+
+        stage("publish") {
+            pushToArtifactory(this, [image], [])
+            addGitTag(this, new_tag)
+        }
+
+        stage("bump-version") {
+            bumpComponentVersionJob("ngssf-sw-label-content", new_tag)
+        }
+    }
+}
+
